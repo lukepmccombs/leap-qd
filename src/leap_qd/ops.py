@@ -5,7 +5,7 @@ from typing import Iterator, List, Callable
 
 @wrap_curry
 @iteriter_op
-def iter_functional_fitness(next_individual: Iterator, func: Callable=lambda x: x):
+def assign_iterator_fitnesses(next_individual: Iterator, func: Callable=lambda x: x):
     """
     An operator that applies a function to each Individual's evaluation to
     produce its fitness. Individuals must be supplied from an iterator.
@@ -19,10 +19,10 @@ def iter_functional_fitness(next_individual: Iterator, func: Callable=lambda x: 
 
 @wrap_curry
 @listlist_op
-def list_functional_fitness(population: List, func: Callable=lambda x: x):
+def assign_population_fitnesses(population: List, func: Callable=lambda x: x):
     """
     An operator that applies a function to each Individual's evaluation to
-    produce its fitness. Individuals must be supplied from an iterator.
+    produce its fitness. Must be supplied as a population.
 
     Defaults to the identity function.
     """

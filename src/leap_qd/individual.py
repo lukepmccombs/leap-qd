@@ -5,7 +5,8 @@ from leap_ec.distrib.individual import DistributedIndividual as _DistributedIndi
 class EvaluationOverrideMixin:
     """
     A mixin that wraps evaluate to redirect the assignment of fitness to evaluation
-    instead.
+    instead. In order to assign or update fitness to use with normal operators,
+    use `leap_qd.ops.iter_functional
     """
 
     def __init__(self, *args, **kwargs):
@@ -13,8 +14,12 @@ class EvaluationOverrideMixin:
         self.evaluation = None
 
     def evaluate(self):
+        # Store the original fitness, since default .evaluate() assigns to fitness
         fitness = self.fitness
-        self.evaluation, self.fitness = super().evaluate(), fitness
+        # Store the result of evaluation, normally fitness, into evaluation
+        self.evaluation = super().evaluate()
+        # Restore the original fitness
+        self.fitness = fitness
         return self.evaluation
 
 

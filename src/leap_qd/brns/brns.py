@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from leap_qd.ops import iter_functional_fitness, list_functional_fitness
+from leap_qd.ops import assign_iterator_fitnesses, assign_population_fitnesses
 
 
 class BRNS:
@@ -29,7 +29,7 @@ class BRNS:
     def add_evaluation(self, individual):
         self.dataset.append(individual.evaluation)
 
-    def iter_add_evaluations_op(self, next_individual):
+    def add_iterator_evaluations(self, next_individual):
         @iteriter_op
         def _call(ni):
             while True:
@@ -38,7 +38,7 @@ class BRNS:
                 yield ind
         return _call(next_individual)
 
-    def list_add_evaluations_op(self, population):
+    def add_population_evaluations(self, population):
         @listlist_op
         def _call(pop):
             for ind in pop:
@@ -46,14 +46,14 @@ class BRNS:
             return pop
         return _call(population)
     
-    def clear_dataset(self):
+    def clear_dataset_(self):
         self.dataset.clear()
     
-    def clear_dataset_op(self, arg):
-        self.clear_dataset()
+    def clear_dataset(self, arg):
+        self.clear_dataset_()
         return arg
 
-    def train(self):
+    def train_(self):
         self.random_encoder.train() # We put random_encoder in train mode in case of things like batch_norm
         self.trained_encoder.train()
 
@@ -70,7 +70,7 @@ class BRNS:
             self.trained_optimizer.step()
 
     def train_op(self, arg):
-        self.train()
+        self.train_()
         return arg
     
     def evaluation_to_fitness(self, evaluation):
@@ -100,10 +100,10 @@ class BRNS:
         return fitness
 
     @property
-    def iter_evaluation_to_fitness_op(self):
-        return iter_functional_fitness(func=self.evaluation_to_fitness)
+    def assign_iterator_fitnesses(self):
+        return assign_iterator_fitnesses(func=self.evaluation_to_fitness)
     
     @property
-    def list_evaluation_to_fitness_op(self):
-        return list_functional_fitness(func=self.evaluation_to_fitness)
+    def assign_population_fitnesses(self):
+        return assign_population_fitnesses(func=self.evaluation_to_fitness)
     

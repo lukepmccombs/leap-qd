@@ -165,9 +165,9 @@ def main(
 
             pipeline=[
                 save_probe,
-                brns.clear_dataset_op,
-                brns.list_evaluation_to_fitness_op,
-                brns.list_add_evaluations_op,
+                brns.clear_dataset,
+                brns.assign_population_fitnesses,
+                brns.add_population_evaluations,
                 fitness_probe,
                 demo_probe,
                 ops.tournament_selection,
@@ -175,9 +175,9 @@ def main(
                 mutate_guassian(std=mutate_std, p_mutate=p_mutate),
                 UniformCrossover(),
                 *evaluate_pipeline,
-                brns.list_evaluation_to_fitness_op,
-                brns.list_add_evaluations_op,
-                brns.train_op
+                brns.assign_population_fitnesses,
+                brns.add_population_evaluations,
+                brns.train
             ]
         )
     
