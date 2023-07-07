@@ -1,8 +1,8 @@
 from leap_ec.ops import iteriter_op, listlist_op
-from typing import Iterator
 import torch
 import torch.nn.functional as F
 import numpy as np
+import os
 
 from leap_qd.ops import assign_iterator_fitnesses, assign_population_fitnesses
 
@@ -12,14 +12,11 @@ class BRNS:
     def __init__(
                 self,
                 random_encoder, trained_encoder, trained_optimizer,
-                train_batch_size=64, error_function=F.mse_loss,
                 concat_quality=False, evaluate_batch=False
             ):
         self.random_encoder = random_encoder
         self.trained_encoder = trained_encoder
         self.trained_optimizer = trained_optimizer
-        self.train_batch_size = train_batch_size
-        self.error_function = error_function
         
         self.concat_quality = concat_quality
         self.evaluate_batch = evaluate_batch
@@ -53,32 +50,46 @@ class BRNS:
         self.clear_dataset_()
         return arg
 
-    def train_(self):
-        self.random_encoder.train() # We put random_encoder in train mode in case of things like batch_norm
+    def train_mode(self):
+        self.random_encoder.train()
         self.trained_encoder.train()
+    
+    def eval_mode(self):
+        self.random_encoder.eval()
+        self.trained_encoder.eval()
 
-        dataset_tensor = torch.tensor(np.array([dat["behavior"] for dat in self.dataset])).float()
-        idx = torch.randperm(dataset_tensor.shape[0])
-        for batch in torch.split(dataset_tensor[idx], self.train_batch_size):
-            with torch.no_grad():
-                random_encoding = self.random_encoder(batch)
-            trained_encoding = self.trained_encoder(batch)
-            loss = self.error_function(trained_encoding, random_encoding)
+    def train_(self, behaviors, inverted=False):
+        self.train_mode()
 
-            self.trained_optimizer.zero_grad()
-            loss.backward()
-            self.trained_optimizer.step()
+        dataset_tensor = torch.tensor(np.array(behaviors)).float()
+        loss = self.batch_behavior_error(dataset_tensor)
+        if inverted:
+            loss = loss * -1
 
-    def train_op(self, arg):
-        self.train_()
+        self.trained_optimizer.zero_grad()
+        loss.backward()
+        self.trained_optimizer.step()
+
+    def batch_behavior_error(self, batch, reduction="mean"):
+        with torch.no_grad():
+            random_encoding = self.random_encoder(batch)
+        trained_encoding = self.trained_encoder(batch)
+        return F.mse_loss(trained_encoding, random_encoding, reduction=reduction)
+    
+    def pre_train(self, low, high, batch_size, iterations):
+        for _ in range(iterations):
+            behaviors = np.random.uniform(low, high, (batch_size, len(low)))
+            self.train_(behaviors, True)
+
+    def train(self, arg):
+        self.train_([dat["behavior"] for dat in self.dataset])
         return arg
     
     def evaluation_to_fitness(self, evaluation):
         behavior = evaluation["behavior"]
         behavior_tensor = torch.tensor(np.array(behavior)).float().unsqueeze(0)
 
-        self.random_encoder.eval()
-        self.trained_encoder.eval()
+        self.eval_mode()
 
         with torch.no_grad():
             random_encoding = self.random_encoder(behavior_tensor)
@@ -107,3 +118,22 @@ class BRNS:
     def assign_population_fitnesses(self):
         return assign_population_fitnesses(func=self.evaluation_to_fitness)
     
+    def save(self, checkpoint_fp):
+        torch.save({
+            "random_encoder_dict": self.random_encoder.state_dict(),
+            "trained_encoder_dict": self.trained_encoder.state_dict(),
+            "trained_optimizer_dict": self.trained_optimizer.state_dict(),
+            "concat_quality": self.concat_quality,
+            "evaluate_batch": self.evaluate_batch,
+            "dataset": self.dataset
+        }, checkpoint_fp)
+    
+    def load(self, checkpoint_fp):
+        data = torch.load(checkpoint_fp)
+
+        self.random_encoder.load_state_dict(data["random_encoder_dict"])
+        self.trained_encoder.load_state_dict(data["trained_encoder_dict"])
+        self.trained_optimizer.load_state_dict(data["trained_optimizer_dict"])
+        self.concat_quality = data["concat_quality"]
+        self.evaluate_batch = data["evaluate_batch"]
+        self.dataset = data["dataset"]
