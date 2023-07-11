@@ -28,6 +28,10 @@ class NoveltySearch:
     def evaluation_to_fitness(self, evaluation, key=dict_key_behavior):
         return self.archive.novelty(key(evaluation))
     
+    def batch_evaluation_to_fitness(self, evaluations, key=dict_key_behavior):
+        self.archive._compile()
+        return self.archive.batch_novelty([key(e) for e in evaluations])
+    
     @wrap_curry
     def assign_iterator_fitnesses(self, next_individual, key=dict_key_behavior):
         return assign_iterator_fitnesses(next_individual, func=self.evaluation_to_fitness(key=key))

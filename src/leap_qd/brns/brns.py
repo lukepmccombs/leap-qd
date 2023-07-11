@@ -110,6 +110,24 @@ class BRNS:
             
         return fitness
 
+    def batch_evaluation_to_fitness(self, evaluations):
+        behaviors = [e["behavior"] for e in evaluations]
+        behavior_tensor = torch.tensor(np.array(behaviors)).float()
+        self.eval_mode()
+
+        with torch.no_grad():
+            random_encoding = self.random_encoder(behavior_tensor)
+            trained_encoding = self.trained_encoder(behavior_tensor)
+            error = F.mse_loss(trained_encoding, random_encoding, reduction="none")
+            error = torch.mean(error, 1)
+
+        fitness = error.detach().cpu().numpy()
+        if self.concat_quality:
+            # Ignoring for now
+            pass
+            
+        return fitness
+
     @property
     def assign_iterator_fitnesses(self):
         return assign_iterator_fitnesses(func=self.evaluation_to_fitness)

@@ -2,6 +2,7 @@ import numpy as np
 from collections import deque
 from heapq import nsmallest
 from scipy.spatial.distance import euclidean
+from sklearn.neighbors import KDTree
 
 import numpy as np
 import abc
@@ -40,15 +41,35 @@ class NearestNeighborsArchive(Archive):
         self.distance_func = distance_func
         self.k = k
 
+        self._compiled = False
+    
+    def _compile(self):
+        if self._compiled:
+            return
+
+        self._compiled = True
+        # Assumes minkowski / euclidean for now
+        self._kdtree = KDTree(self.behaviors, 1)
+
     def novelty(self, behavior):
-
-
+        if self._compiled:
+            k = min(self.k, len(self.behaviors))
+            dist, _ = self._kdtree.query([behavior], k, return_distance=True)
+            return np.mean(dist)
         return np.mean(
                 nsmallest(self.k, [self.distance_func(behavior, ab) for ab in self.behaviors])
             )
+
+    def batch_novelty(self, behaviors):
+        if self._compiled:
+            k = min(self.k, len(self.behaviors))
+            dists, _ = self._kdtree.query(behaviors, k, return_distance=True)
+            return np.mean(dists, 1)
+        return np.array([self.novelty(b) for b in behaviors])
     
     def push(self, behavior):
         self.behaviors.append(behavior)
+        self._compiled = False
 
 
 class AdaptiveThresholdArchive(NearestNeighborsArchive):
@@ -127,3 +148,4 @@ class GrowthRateArchive(NearestNeighborsArchive):
 
         for idx in choice_idx:
             self.behaviors.append(behaviors[idx])
+        self._compiled = False
