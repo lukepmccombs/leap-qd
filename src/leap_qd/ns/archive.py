@@ -2,7 +2,7 @@ import numpy as np
 from collections import deque
 from heapq import nsmallest
 from scipy.spatial.distance import euclidean
-from sklearn.neighbors import KDTree
+from scipy.spatial import KDTree
 
 import numpy as np
 import abc
@@ -54,7 +54,7 @@ class NearestNeighborsArchive(Archive):
     def novelty(self, behavior):
         if self._compiled:
             k = min(self.k, len(self.behaviors))
-            dist, _ = self._kdtree.query([behavior], k, return_distance=True)
+            dist, _ = self._kdtree.query([behavior], k)
             return np.mean(dist)
         return np.mean(
                 nsmallest(self.k, [self.distance_func(behavior, ab) for ab in self.behaviors])
@@ -63,7 +63,7 @@ class NearestNeighborsArchive(Archive):
     def batch_novelty(self, behaviors):
         if self._compiled:
             k = min(self.k, len(self.behaviors))
-            dists, _ = self._kdtree.query(behaviors, k, return_distance=True)
+            dists, _ = self._kdtree.query(behaviors, k)
             return np.mean(dists, 1)
         return np.array([self.novelty(b) for b in behaviors])
     
